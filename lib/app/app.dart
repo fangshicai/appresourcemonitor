@@ -1,6 +1,6 @@
-import 'package:appresourcemonitor/app/bindings/initial_binding.dart';
-import 'package:appresourcemonitor/app/routes/app_pages.dart';
-import 'package:appresourcemonitor/app/routes/app_routes.dart';
+import 'package:appresourcemonitor/app/bindings/InitialBinding.dart';
+import 'package:appresourcemonitor/app/routes/AppPages.dart';
+import 'package:appresourcemonitor/app/routes/AppRoutes.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

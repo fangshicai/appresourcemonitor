@@ -1,4 +1,4 @@
-import 'package:appresourcemonitor/services/fake_app_resource_monitor_service.dart';
+import 'package:appresourcemonitor/services/FakeAppResourceMonitorService.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

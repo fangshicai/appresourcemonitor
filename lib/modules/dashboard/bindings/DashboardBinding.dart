@@ -1,5 +1,5 @@
-import 'package:appresourcemonitor/modules/dashboard/view_models/dashboard_view_model.dart';
-import 'package:appresourcemonitor/services/app_resource_monitor_service.dart';
+import 'package:appresourcemonitor/modules/dashboard/view_models/DashboardViewModel.dart';
+import 'package:appresourcemonitor/services/AppResourceMonitorService.dart';
 import 'package:get/get.dart';
 
 class DashboardBinding extends Bindings {

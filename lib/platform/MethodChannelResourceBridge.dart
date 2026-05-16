@@ -1,7 +1,7 @@
-import 'package:appresourcemonitor/models/action_result.dart';
-import 'package:appresourcemonitor/models/app_resource_snapshot.dart';
-import 'package:appresourcemonitor/models/monitored_app.dart';
-import 'package:appresourcemonitor/platform/platform_resource_bridge.dart';
+import 'package:appresourcemonitor/models/ActionResult.dart';
+import 'package:appresourcemonitor/models/AppResourceSnapshot.dart';
+import 'package:appresourcemonitor/models/MonitoredApp.dart';
+import 'package:appresourcemonitor/platform/PlatformResourceBridge.dart';
 import 'package:flutter/services.dart';
 
 class MethodChannelResourceBridge implements PlatformResourceBridge {
@@ -56,7 +56,7 @@ class MethodChannelResourceBridge implements PlatformResourceBridge {
     try {
       final result = await _methodChannel.invokeMapMethod<String, Object?>(
         method,
-        app.toMap(),
+        app.toJson(),
       );
       return ActionResult(
         type: actionType,
@@ -75,8 +75,25 @@ class MethodChannelResourceBridge implements PlatformResourceBridge {
   }
 
   AppResourceSnapshot _snapshotFromPlatformMap(Map<dynamic, dynamic> value) {
-    return AppResourceSnapshot.fromMap(
-      value.map((key, mapValue) => MapEntry(key as String, mapValue)),
-    );
+    return AppResourceSnapshot.fromJson(_normalizePlatformMap(value));
+  }
+
+  Map<String, dynamic> _normalizePlatformMap(Map<dynamic, dynamic> value) {
+    return value.map((key, mapValue) {
+      final normalizedValue = switch (mapValue) {
+        Map<dynamic, dynamic>() => _normalizePlatformMap(mapValue),
+        List<dynamic>() =>
+          mapValue
+              .map((item) {
+                if (item is Map<dynamic, dynamic>) {
+                  return _normalizePlatformMap(item);
+                }
+                return item;
+              })
+              .toList(growable: false),
+        _ => mapValue,
+      };
+      return MapEntry(key as String, normalizedValue);
+    });
   }
 }

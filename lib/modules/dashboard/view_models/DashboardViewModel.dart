@@ -1,5 +1,5 @@
-import 'package:appresourcemonitor/models/app_resource_snapshot.dart';
-import 'package:appresourcemonitor/services/app_resource_monitor_service.dart';
+import 'package:appresourcemonitor/models/AppResourceSnapshot.dart';
+import 'package:appresourcemonitor/services/AppResourceMonitorService.dart';
 import 'package:get/get.dart';
 
 enum MonitorViewStatus {

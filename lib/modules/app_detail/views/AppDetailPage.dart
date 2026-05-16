@@ -1,5 +1,5 @@
-import 'package:appresourcemonitor/models/resource_metric.dart';
-import 'package:appresourcemonitor/modules/app_detail/view_models/app_detail_view_model.dart';
+import 'package:appresourcemonitor/models/ResourceMetric.dart';
+import 'package:appresourcemonitor/modules/app_detail/view_models/AppDetailViewModel.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

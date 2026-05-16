@@ -1,3 +1,8 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'ResourceMetric.g.dart';
+
+@JsonSerializable()
 class ResourceMetric {
   const ResourceMetric({
     required this.label,
@@ -18,16 +23,8 @@ class ResourceMetric {
     return '${value.toStringAsFixed(1)} $unit';
   }
 
-  factory ResourceMetric.fromMap(Map<String, Object?> map) {
-    return ResourceMetric(
-      label: map['label'] as String,
-      value: (map['value'] as num).toDouble(),
-      unit: map['unit'] as String,
-      percent: (map['percent'] as num).toDouble(),
-    );
-  }
+  factory ResourceMetric.fromJson(Map<String, dynamic> json) =>
+      _$ResourceMetricFromJson(json);
 
-  Map<String, Object?> toMap() {
-    return {'label': label, 'value': value, 'unit': unit, 'percent': percent};
-  }
+  Map<String, dynamic> toJson() => _$ResourceMetricToJson(this);
 }

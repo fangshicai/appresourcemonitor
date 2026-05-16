@@ -1,5 +1,5 @@
-import 'package:appresourcemonitor/modules/dashboard/view_models/dashboard_view_model.dart';
-import 'package:appresourcemonitor/services/fake_app_resource_monitor_service.dart';
+import 'package:appresourcemonitor/modules/dashboard/view_models/DashboardViewModel.dart';
+import 'package:appresourcemonitor/services/FakeAppResourceMonitorService.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

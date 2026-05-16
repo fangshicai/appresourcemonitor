@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:appresourcemonitor/models/app_resource_snapshot.dart';
-import 'package:appresourcemonitor/models/monitored_app.dart';
-import 'package:appresourcemonitor/models/resource_metric.dart';
-import 'package:appresourcemonitor/services/app_resource_monitor_service.dart';
+import 'package:appresourcemonitor/models/AppResourceSnapshot.dart';
+import 'package:appresourcemonitor/models/MonitoredApp.dart';
+import 'package:appresourcemonitor/models/ResourceMetric.dart';
+import 'package:appresourcemonitor/services/AppResourceMonitorService.dart';
 
 class FakeAppResourceMonitorService implements AppResourceMonitorService {
   FakeAppResourceMonitorService();

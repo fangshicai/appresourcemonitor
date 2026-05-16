@@ -1,4 +1,4 @@
-import 'package:appresourcemonitor/models/app_resource_snapshot.dart';
+import 'package:appresourcemonitor/models/AppResourceSnapshot.dart';
 
 abstract interface class AppResourceMonitorService {
   Future<List<AppResourceSnapshot>> getSnapshots();
