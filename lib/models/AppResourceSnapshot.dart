@@ -12,6 +12,7 @@ class AppResourceSnapshot {
     required this.cpu,
     required this.memory,
     required this.disk,
+    required this.network,
     required this.sampledAt,
     required this.source,
   });
@@ -21,6 +22,7 @@ class AppResourceSnapshot {
   final ResourceMetric cpu;
   final ResourceMetric memory;
   final ResourceMetric disk;
+  final ResourceMetric network;
   final DateTime sampledAt;
   final String source;
 

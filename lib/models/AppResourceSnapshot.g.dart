@@ -13,6 +13,7 @@ AppResourceSnapshot _$AppResourceSnapshotFromJson(Map<String, dynamic> json) =>
       cpu: ResourceMetric.fromJson(json['cpu'] as Map<String, dynamic>),
       memory: ResourceMetric.fromJson(json['memory'] as Map<String, dynamic>),
       disk: ResourceMetric.fromJson(json['disk'] as Map<String, dynamic>),
+      network: ResourceMetric.fromJson(json['network'] as Map<String, dynamic>),
       sampledAt: DateTime.parse(json['sampledAt'] as String),
       source: json['source'] as String,
     );
@@ -25,6 +26,7 @@ Map<String, dynamic> _$AppResourceSnapshotToJson(
   'cpu': instance.cpu.toJson(),
   'memory': instance.memory.toJson(),
   'disk': instance.disk.toJson(),
+  'network': instance.network.toJson(),
   'sampledAt': instance.sampledAt.toIso8601String(),
   'source': instance.source,
 };

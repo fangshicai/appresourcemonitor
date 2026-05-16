@@ -31,6 +31,12 @@ void main() {
           unit: 'GB',
           percent: 10,
         ),
+        network: const ResourceMetric(
+          label: '网络',
+          value: 128,
+          unit: 'KB/s',
+          percent: 12.8,
+        ),
         sampledAt: DateTime(2026, 5, 16, 9, 30),
         source: 'fake',
       );
@@ -39,6 +45,7 @@ void main() {
       expect(snapshot.cpu.displayValue, '12.5%');
       expect(snapshot.memory.displayValue, '512.0 MB');
       expect(snapshot.disk.displayValue, '1.2 GB');
+      expect(snapshot.network.displayValue, '128.0 KB/s');
     });
 
     test('round-trips nested JSON data', () {
@@ -67,6 +74,12 @@ void main() {
           unit: 'GB',
           percent: 10,
         ),
+        network: const ResourceMetric(
+          label: '网络',
+          value: 128,
+          unit: 'KB/s',
+          percent: 12.8,
+        ),
         sampledAt: DateTime(2026, 5, 16, 9, 30),
         source: 'fake',
       );
@@ -75,6 +88,7 @@ void main() {
 
       expect(parsed.app.platformId, 'com.example.maps');
       expect(parsed.cpu.displayValue, '12.5%');
+      expect(parsed.network.displayValue, '128.0 KB/s');
       expect(parsed.sampledAt, DateTime(2026, 5, 16, 9, 30));
     });
   });

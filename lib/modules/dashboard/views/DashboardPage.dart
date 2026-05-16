@@ -92,6 +92,7 @@ class _SnapshotCard extends StatelessWidget {
               _MetricRow(metric: snapshot.cpu),
               _MetricRow(metric: snapshot.memory),
               _MetricRow(metric: snapshot.disk),
+              _MetricRow(metric: snapshot.network),
             ],
           ),
         ),

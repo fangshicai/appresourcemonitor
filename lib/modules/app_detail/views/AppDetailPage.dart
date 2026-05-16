@@ -24,6 +24,7 @@ class AppDetailPage extends GetView<AppDetailViewModel> {
             _MetricTile(metric: snapshot.cpu),
             _MetricTile(metric: snapshot.memory),
             _MetricTile(metric: snapshot.disk),
+            _MetricTile(metric: snapshot.network),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: controller.isActionRunning.value
