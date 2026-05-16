@@ -123,6 +123,12 @@ class _DashboardControls extends StatelessWidget {
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SegmentedButton<DashboardRunningFilter>(
+                showSelectedIcon: false,
+                style: SegmentedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
                 selected: {controller.runningFilter.value},
                 onSelectionChanged: (values) {
                   controller.updateRunningFilter(values.single);
@@ -131,7 +137,12 @@ class _DashboardControls extends StatelessWidget {
                     .map((filter) {
                       return ButtonSegment<DashboardRunningFilter>(
                         value: filter,
-                        label: Text(filter.label),
+                        label: Text(
+                          filter.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
                       );
                     })
                     .toList(growable: false),
@@ -213,6 +224,10 @@ extension _DashboardRunningFilterLabel on DashboardRunningFilter {
     return switch (this) {
       DashboardRunningFilter.all => '全部',
       DashboardRunningFilter.running => '运行中',
+      DashboardRunningFilter.background => '后台运行',
+      DashboardRunningFilter.confirmed => '当前可确认',
+      DashboardRunningFilter.recentlyUsed => '最近使用',
+      DashboardRunningFilter.unknown => '未确认',
       DashboardRunningFilter.stopped => '未运行',
     };
   }

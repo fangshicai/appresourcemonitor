@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:appresourcemonitor/models/AppResourceSnapshot.dart';
 import 'package:appresourcemonitor/models/MonitoredApp.dart';
 import 'package:appresourcemonitor/models/ResourceMetric.dart';
@@ -19,6 +17,7 @@ class FakeAppResourceMonitorService implements AppResourceMonitorService {
         iconHint: 'map',
       ),
       isRunning: true,
+      runState: AppRunState.foreground,
       cpu: const ResourceMetric(
         label: 'CPU',
         value: 12.5,
@@ -54,6 +53,7 @@ class FakeAppResourceMonitorService implements AppResourceMonitorService {
         iconHint: 'mail',
       ),
       isRunning: true,
+      runState: AppRunState.background,
       cpu: const ResourceMetric(
         label: 'CPU',
         value: 4.8,
@@ -89,6 +89,7 @@ class FakeAppResourceMonitorService implements AppResourceMonitorService {
         iconHint: 'music',
       ),
       isRunning: false,
+      runState: AppRunState.stopped,
       cpu: const ResourceMetric(label: 'CPU', value: 0, unit: '%', percent: 0),
       memory: const ResourceMetric(
         label: '内存',
@@ -119,6 +120,7 @@ class FakeAppResourceMonitorService implements AppResourceMonitorService {
         iconHint: 'browser',
       ),
       isRunning: true,
+      runState: AppRunState.background,
       cpu: const ResourceMetric(
         label: 'CPU',
         value: 22.1,
@@ -146,6 +148,104 @@ class FakeAppResourceMonitorService implements AppResourceMonitorService {
       sampledAt: _sampledAt,
       source: 'fake',
     ),
+    AppResourceSnapshot(
+      app: const MonitoredApp(
+        id: 'com.example.camera',
+        name: 'Camera',
+        platformId: 'com.example.camera',
+        iconHint: 'camera',
+      ),
+      isRunning: true,
+      runState: AppRunState.confirmed,
+      cpu: const ResourceMetric(
+        label: 'CPU',
+        value: 1.2,
+        unit: '%',
+        percent: 1.2,
+      ),
+      memory: const ResourceMetric(
+        label: '内存',
+        value: 96,
+        unit: 'MB',
+        percent: 5,
+      ),
+      disk: const ResourceMetric(
+        label: '磁盘',
+        value: 320,
+        unit: 'MB',
+        percent: 3,
+      ),
+      network: const ResourceMetric(
+        label: '网络',
+        value: 0,
+        unit: 'KB/s',
+        percent: 0,
+      ),
+      sampledAt: _sampledAt,
+      source: 'fake:limited',
+    ),
+    AppResourceSnapshot(
+      app: const MonitoredApp(
+        id: 'com.example.reader',
+        name: 'Reader',
+        platformId: 'com.example.reader',
+        iconHint: 'reader',
+      ),
+      isRunning: false,
+      runState: AppRunState.recentlyUsed,
+      cpu: const ResourceMetric(label: 'CPU', value: 0, unit: '%', percent: 0),
+      memory: const ResourceMetric(
+        label: '内存',
+        value: 0,
+        unit: 'MB',
+        percent: 0,
+      ),
+      disk: const ResourceMetric(
+        label: '磁盘',
+        value: 180,
+        unit: 'MB',
+        percent: 2,
+      ),
+      network: const ResourceMetric(
+        label: '网络',
+        value: 0,
+        unit: 'KB/s',
+        percent: 0,
+      ),
+      sampledAt: _sampledAt,
+      source: 'fake:limited',
+    ),
+    AppResourceSnapshot(
+      app: const MonitoredApp(
+        id: 'com.example.notes',
+        name: 'Notes',
+        platformId: 'com.example.notes',
+        iconHint: 'notes',
+      ),
+      isRunning: false,
+      runState: AppRunState.unknown,
+      cpu: const ResourceMetric(label: 'CPU', value: 0, unit: '%', percent: 0),
+      memory: const ResourceMetric(
+        label: '内存',
+        value: 0,
+        unit: 'MB',
+        percent: 0,
+      ),
+      disk: const ResourceMetric(
+        label: '磁盘',
+        value: 96,
+        unit: 'MB',
+        percent: 1,
+      ),
+      network: const ResourceMetric(
+        label: '网络',
+        value: 0,
+        unit: 'KB/s',
+        percent: 0,
+      ),
+      sampledAt: _sampledAt,
+      source: 'fake:limited',
+    ),
   ];
 
   @override
@@ -156,13 +256,6 @@ class FakeAppResourceMonitorService implements AppResourceMonitorService {
   @override
   Future<List<AppResourceSnapshot>> getSnapshots() async {
     return List<AppResourceSnapshot>.unmodifiable(_snapshots);
-  }
-
-  @override
-  Stream<List<AppResourceSnapshot>> watchSnapshots() {
-    return Stream<List<AppResourceSnapshot>>.value(
-      List<AppResourceSnapshot>.unmodifiable(_snapshots),
-    );
   }
 }
 

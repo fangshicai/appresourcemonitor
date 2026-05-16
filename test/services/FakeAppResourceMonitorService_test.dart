@@ -8,7 +8,7 @@ void main() {
 
       final snapshots = await service.getSnapshots();
 
-      expect(snapshots, hasLength(4));
+      expect(snapshots, hasLength(7));
       expect(snapshots.first.app.name, 'Maps');
       expect(snapshots.first.isRunning, isTrue);
     });

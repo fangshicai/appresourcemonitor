@@ -2,6 +2,8 @@ package com.example.appresourcemonitor
 
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -12,12 +14,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.system.Os
 import android.system.OsConstants
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -25,13 +27,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.max
+import kotlin.system.exitProcess
 
 private const val LogTag = "AppResMonitor"
 private const val UninstallRequestCode = 8101
+private const val RecentUsageWindowMillis = 30 * 60 * 1000L
 
 class MainActivity : FlutterActivity() {
     private val methodChannelName = "app_resource_monitor/methods"
-    private val eventChannelName = "app_resource_monitor/snapshots"
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +44,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        Log.i(LogTag, "资源监控原生层开始注册 MethodChannel 和 EventChannel。")
+        Log.i(LogTag, "资源监控原生层开始注册 MethodChannel。")
 
         val collector = AndroidResourceCollector(this)
         val actions = AndroidAppActionRunner(this)
@@ -83,8 +86,6 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, eventChannelName)
-            .setStreamHandler(AndroidSnapshotStream(collector))
         Log.i(LogTag, "资源监控原生通道注册完成。")
     }
 
@@ -112,33 +113,6 @@ private fun MethodCall.platformId(): String {
         ?: error("Missing platformId")
 }
 
-private class AndroidSnapshotStream(
-    private val collector: AndroidResourceCollector,
-) : EventChannel.StreamHandler {
-    private val handler = Handler(Looper.getMainLooper())
-    private var sink: EventChannel.EventSink? = null
-
-    private val tick =
-        object : Runnable {
-            override fun run() {
-                sink?.success(collector.fetchSnapshots())
-                handler.postDelayed(this, 5000)
-            }
-        }
-
-    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        Log.i(LogTag, "资源快照事件流开始监听。")
-        sink = events
-        tick.run()
-    }
-
-    override fun onCancel(arguments: Any?) {
-        Log.i(LogTag, "资源快照事件流停止监听。")
-        handler.removeCallbacks(tick)
-        sink = null
-    }
-}
-
 private class AndroidResourceCollector(private val context: Context) {
     private val packageManager = context.packageManager
     private val activityManager =
@@ -155,9 +129,13 @@ private class AndroidResourceCollector(private val context: Context) {
         val memoryClassMb = max(1, activityManager.memoryClass)
         val sampledAt = isoNow()
         val applications = installedApplications()
+        val rootAvailable = RootShell.isAvailable()
+        val usageSnapshot = usageSnapshot()
         Log.i(
             LogTag,
-            "开始生成资源快照：已扫描进程 ${processes.size} 个，可见应用 ${applications.size} 个。",
+            "开始生成资源快照：已扫描进程 ${processes.size} 个，可见应用 ${applications.size} 个，"
+                + "Root=${if (rootAvailable) "可用" else "不可用"}，"
+                + "前台应用=${usageSnapshot.foregroundPackage ?: "未知"}。",
         )
 
         return applications
@@ -169,11 +147,26 @@ private class AndroidResourceCollector(private val context: Context) {
                         it.name == packageName || it.name.startsWith("$packageName:")
                     }.ifEmpty {
                         listOfNotNull(processesByName[packageName])
-                    }
+                }
                 val memoryMb = appProcesses.sumOf { it.rssKb }.toDouble() / 1024.0
                 val cpuPercent = appProcesses.sumOf { it.cpuPercent }.coerceIn(0.0, 100.0)
-                val diskMb = diskUsageMb(app)
+                val diskMb = diskUsageMb(app, rootAvailable)
                 val networkKbPerSecond = networkRateKbPerSecond(app.uid)
+                val isRunning = appProcesses.isNotEmpty()
+                val runState =
+                    if (rootAvailable) {
+                        when {
+                            !isRunning -> "stopped"
+                            packageName == usageSnapshot.foregroundPackage -> "foreground"
+                            else -> "background"
+                        }
+                    } else {
+                        when {
+                            isRunning -> "confirmed"
+                            packageName in usageSnapshot.recentPackages -> "recentlyUsed"
+                            else -> "unknown"
+                        }
+                    }
 
                 mapOf(
                     "app" to
@@ -183,7 +176,8 @@ private class AndroidResourceCollector(private val context: Context) {
                             "platformId" to packageName,
                             "iconHint" to "android",
                         ),
-                    "isRunning" to appProcesses.isNotEmpty(),
+                    "isRunning" to isRunning,
+                    "runState" to runState,
                     "cpu" to metric("CPU", cpuPercent, "%", cpuPercent),
                     "memory" to
                         metric(
@@ -207,7 +201,12 @@ private class AndroidResourceCollector(private val context: Context) {
                             percent(networkKbPerSecond, 1024.0),
                         ),
                     "sampledAt" to sampledAt,
-                    "source" to "android:/proc+TrafficStats",
+                    "source" to
+                        if (rootAvailable) {
+                            "android:root:/proc+TrafficStats"
+                        } else {
+                            "android:limited:/proc+UsageStats+TrafficStats"
+                        },
                 )
             }
     }
@@ -273,15 +272,20 @@ private class AndroidResourceCollector(private val context: Context) {
         return (cpuSeconds / elapsedSeconds / cpuCores.toDouble()) * 100.0
     }
 
-    private fun diskUsageMb(app: ApplicationInfo): Double {
+    private fun diskUsageMb(app: ApplicationInfo, rootAvailable: Boolean): Double {
         val apkBytes = File(app.sourceDir).length().coerceAtLeast(0L)
-        val rootDataKb = RootShell.run("du -sk ${shellQuote(app.dataDir)}")
-            ?.lineSequence()
-            ?.firstOrNull()
-            ?.trim()
-            ?.split(Regex("""\s+"""))
-            ?.firstOrNull()
-            ?.toLongOrNull()
+        val rootDataKb =
+            if (rootAvailable) {
+                RootShell.run("du -sk ${shellQuote(app.dataDir)}")
+                    ?.lineSequence()
+                    ?.firstOrNull()
+                    ?.trim()
+                    ?.split(Regex("""\s+"""))
+                    ?.firstOrNull()
+                    ?.toLongOrNull()
+            } else {
+                null
+            }
         return if (rootDataKb != null) {
             rootDataKb.toDouble() / 1024.0
         } else {
@@ -310,6 +314,46 @@ private class AndroidResourceCollector(private val context: Context) {
         return deltaBytes.toDouble() / 1024.0 / elapsedSeconds
     }
 
+    private fun usageSnapshot(): UsageSnapshot {
+        val usageStatsManager =
+            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return UsageSnapshot()
+        val nowMillis = System.currentTimeMillis()
+        val events =
+            try {
+                usageStatsManager.queryEvents(nowMillis - RecentUsageWindowMillis, nowMillis)
+            } catch (error: Throwable) {
+                Log.w(LogTag, "UsageStats 查询失败，非 Root 状态将降级为当前可确认或未确认：${error.message ?: "未知错误"}")
+                return UsageSnapshot()
+            }
+
+        val event = UsageEvents.Event()
+        var latestPackage: String? = null
+        var latestTime = 0L
+        val recentPackages = mutableSetOf<String>()
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (
+                event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+                    event.eventType == UsageEvents.Event.MOVE_TO_BACKGROUND
+            ) {
+                recentPackages.add(event.packageName)
+            }
+            if (
+                event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND &&
+                    event.timeStamp >= latestTime
+            ) {
+                latestPackage = event.packageName
+                latestTime = event.timeStamp
+            }
+        }
+
+        if (latestPackage == null) {
+            Log.i(LogTag, "未从 UsageStats 获取到前台应用，可能尚未授予使用情况访问权限。")
+        }
+        return UsageSnapshot(latestPackage, recentPackages)
+    }
+
     private fun metric(label: String, value: Double, unit: String, percent: Double): Map<String, Any> {
         return mapOf(
             "label" to label,
@@ -331,10 +375,23 @@ private class AndroidResourceCollector(private val context: Context) {
 
 private class AndroidAppActionRunner(private val context: Context) {
     fun stopBackground(packageName: String): Map<String, String> {
+        if (packageName == context.packageName) {
+            Log.w(LogTag, "目标应用是当前监控 App，将直接杀死当前进程：$packageName。")
+            (context as? Activity)?.finishAndRemoveTask()
+            Handler(Looper.getMainLooper()).postDelayed(
+                {
+                    Process.killProcess(Process.myPid())
+                    exitProcess(0)
+                },
+                150,
+            )
+            return actionResult("success", "已触发杀死当前 App 进程。")
+        }
+
         val rootResult = RootShell.run("am force-stop ${shellQuote(packageName)}")
         if (rootResult != null) {
             Log.i(LogTag, "Root 关闭后台命令已执行：$packageName。")
-            return actionResult("success", "已通过 Root 命令尝试关闭 $packageName。")
+            return actionResult("success", "已通过 Root 命令杀死 $packageName。")
         }
 
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -342,7 +399,7 @@ private class AndroidAppActionRunner(private val context: Context) {
         Log.w(LogTag, "Root 不可用，已对 $packageName 调用普通 killBackgroundProcesses。")
         return actionResult(
             "permissionRequired",
-            "已调用普通后台清理接口；完整关闭需要 Root 权限。",
+            "已调用普通后台清理接口；非 Root 环境无法强制杀死其他 App。",
         )
     }
 
@@ -389,8 +446,21 @@ private object RootShell {
     @Volatile
     private var unavailableLogged = false
 
+    @Volatile
+    private var availability: Boolean? = null
+
+    fun isAvailable(): Boolean {
+        availability?.let { return it }
+        val available = run("id")?.contains("uid=0") == true
+        availability = available
+        if (!available) {
+            unavailable = true
+        }
+        return available
+    }
+
     fun run(command: String): String? {
-        if (unavailable) {
+        if (unavailable || availability == false) {
             return null
         }
 
@@ -430,6 +500,11 @@ private data class ProcessSample(
 private data class NetworkSample(
     val totalBytes: Long,
     val sampledAtMillis: Long,
+)
+
+private data class UsageSnapshot(
+    val foregroundPackage: String? = null,
+    val recentPackages: Set<String> = emptySet(),
 )
 
 private fun File.readTextOrNull(): String? {

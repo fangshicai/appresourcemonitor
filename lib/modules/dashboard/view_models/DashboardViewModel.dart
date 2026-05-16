@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:appresourcemonitor/models/AppResourceSnapshot.dart';
 import 'package:appresourcemonitor/models/ResourceMetric.dart';
 import 'package:appresourcemonitor/platform/MethodChannelResourceBridge.dart';
@@ -16,14 +18,26 @@ enum MonitorViewStatus {
 
 enum DashboardSortOption { appName, cpu, memory, disk, network }
 
-enum DashboardRunningFilter { all, running, stopped }
+enum DashboardRunningFilter {
+  all,
+  running,
+  background,
+  confirmed,
+  recentlyUsed,
+  unknown,
+  stopped,
+}
 
 class DashboardViewModel extends GetxController {
+  static const autoRefreshInterval = Duration(seconds: 1);
+
   DashboardViewModel({required AppResourceMonitorService monitorService})
     : _monitorService = monitorService;
 
   final AppResourceMonitorService _monitorService;
   final List<AppResourceSnapshot> _allSnapshots = <AppResourceSnapshot>[];
+  Timer? _autoRefreshTimer;
+  bool _isLoadingSnapshots = false;
 
   final status = MonitorViewStatus.loading.obs;
   final snapshots = <AppResourceSnapshot>[].obs;
@@ -36,11 +50,35 @@ class DashboardViewModel extends GetxController {
   void onInit() {
     super.onInit();
     loadSnapshots();
+    _startAutoRefresh();
+  }
+
+  @override
+  void onClose() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = null;
+    super.onClose();
   }
 
   Future<void> loadSnapshots() async {
+    return _loadSnapshots(showLoading: true);
+  }
+
+  Future<void> _refreshSnapshots() async {
+    return _loadSnapshots(showLoading: false);
+  }
+
+  Future<void> _loadSnapshots({required bool showLoading}) async {
+    if (_isLoadingSnapshots) {
+      debugPrint('[资源监控][首页] 上一次资源快照仍在加载，跳过本轮刷新。');
+      return;
+    }
+
+    _isLoadingSnapshots = true;
     debugPrint('[资源监控][首页] 开始加载资源快照。');
-    status.value = MonitorViewStatus.loading;
+    if (showLoading) {
+      status.value = MonitorViewStatus.loading;
+    }
     errorMessage.value = null;
 
     try {
@@ -57,6 +95,8 @@ class DashboardViewModel extends GetxController {
         '页面状态=${status.value.name}。',
       );
     } on PlatformResourceBridgeUnavailableException catch (error) {
+      _autoRefreshTimer?.cancel();
+      _autoRefreshTimer = null;
       _allSnapshots.clear();
       snapshots.clear();
       errorMessage.value = error.message;
@@ -68,7 +108,16 @@ class DashboardViewModel extends GetxController {
       errorMessage.value = '资源快照加载失败：$error';
       status.value = MonitorViewStatus.error;
       debugPrint('[资源监控][首页] 资源快照加载失败：$error');
+    } finally {
+      _isLoadingSnapshots = false;
     }
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(autoRefreshInterval, (_) {
+      _refreshSnapshots();
+    });
   }
 
   void updateSearchQuery(String value) {
@@ -93,7 +142,15 @@ class DashboardViewModel extends GetxController {
           final matchesRunningFilter = switch (runningFilter.value) {
             DashboardRunningFilter.all => true,
             DashboardRunningFilter.running => snapshot.isRunning,
-            DashboardRunningFilter.stopped => !snapshot.isRunning,
+            DashboardRunningFilter.background => snapshot.isBackgroundRunning,
+            DashboardRunningFilter.confirmed =>
+              snapshot.runState == AppRunState.confirmed,
+            DashboardRunningFilter.recentlyUsed =>
+              snapshot.runState == AppRunState.recentlyUsed,
+            DashboardRunningFilter.unknown =>
+              snapshot.runState == AppRunState.unknown,
+            DashboardRunningFilter.stopped =>
+              snapshot.runState == AppRunState.stopped,
           };
           if (!matchesRunningFilter) {
             return false;

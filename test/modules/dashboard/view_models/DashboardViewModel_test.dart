@@ -73,6 +73,52 @@ void main() {
       expect(viewModel.runningFilter.value, DashboardRunningFilter.stopped);
     });
 
+    test('filters snapshots by background running state', () async {
+      final viewModel = DashboardViewModel(
+        monitorService: FakeAppResourceMonitorService(),
+      );
+
+      await viewModel.loadSnapshots();
+      viewModel.updateRunningFilter(DashboardRunningFilter.background);
+
+      expect(viewModel.snapshots, isNotEmpty);
+      expect(
+        viewModel.snapshots.every(
+          (snapshot) => snapshot.runState == AppRunState.background,
+        ),
+        isTrue,
+      );
+      expect(viewModel.snapshots.map((snapshot) => snapshot.app.name), [
+        'Browser',
+        'Mail',
+      ]);
+    });
+
+    test('filters limited permission snapshot states', () async {
+      final viewModel = DashboardViewModel(
+        monitorService: FakeAppResourceMonitorService(),
+      );
+
+      await viewModel.loadSnapshots();
+      viewModel.updateRunningFilter(DashboardRunningFilter.confirmed);
+
+      expect(viewModel.snapshots.map((snapshot) => snapshot.runState), [
+        AppRunState.confirmed,
+      ]);
+
+      viewModel.updateRunningFilter(DashboardRunningFilter.recentlyUsed);
+
+      expect(viewModel.snapshots.map((snapshot) => snapshot.runState), [
+        AppRunState.recentlyUsed,
+      ]);
+
+      viewModel.updateRunningFilter(DashboardRunningFilter.unknown);
+
+      expect(viewModel.snapshots.map((snapshot) => snapshot.runState), [
+        AppRunState.unknown,
+      ]);
+    });
+
     test(
       'shows unsupported state when native snapshot channel is missing',
       () async {
@@ -86,7 +132,48 @@ void main() {
         expect(viewModel.errorMessage.value, '当前平台尚未接入原生资源监控能力。');
       },
     );
+
+    testWidgets(
+      'auto refreshes snapshots every second without showing loading',
+      (tester) async {
+        final monitorService = _CountingMonitorService();
+        final viewModel = DashboardViewModel(monitorService: monitorService);
+
+        viewModel.onInit();
+        await tester.pump();
+
+        expect(monitorService.callCount, 1);
+        expect(viewModel.status.value, MonitorViewStatus.ready);
+
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump();
+
+        expect(monitorService.callCount, 2);
+        expect(viewModel.status.value, MonitorViewStatus.ready);
+
+        viewModel.onClose();
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump();
+
+        expect(monitorService.callCount, 2);
+      },
+    );
   });
+}
+
+class _CountingMonitorService implements AppResourceMonitorService {
+  int callCount = 0;
+
+  @override
+  Future<AppResourceSnapshot?> getSnapshot(String appId) async {
+    return null;
+  }
+
+  @override
+  Future<List<AppResourceSnapshot>> getSnapshots() async {
+    callCount += 1;
+    return FakeAppResourceMonitorService().getSnapshots();
+  }
 }
 
 class _UnavailableMonitorService implements AppResourceMonitorService {
@@ -97,11 +184,6 @@ class _UnavailableMonitorService implements AppResourceMonitorService {
 
   @override
   Future<List<AppResourceSnapshot>> getSnapshots() {
-    throw const PlatformResourceBridgeUnavailableException();
-  }
-
-  @override
-  Stream<List<AppResourceSnapshot>> watchSnapshots() {
     throw const PlatformResourceBridgeUnavailableException();
   }
 }

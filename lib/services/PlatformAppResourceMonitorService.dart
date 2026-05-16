@@ -19,11 +19,6 @@ class PlatformAppResourceMonitorService implements AppResourceMonitorService {
   Future<List<AppResourceSnapshot>> getSnapshots() {
     return _bridge.fetchSnapshots();
   }
-
-  @override
-  Stream<List<AppResourceSnapshot>> watchSnapshots() {
-    return _bridge.watchSnapshots();
-  }
 }
 
 extension _FirstOrNull<T> on Iterable<T> {

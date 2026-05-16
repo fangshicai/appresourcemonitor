@@ -28,6 +28,7 @@ void main() {
                   'iconHint': 'android',
                 },
                 'isRunning': true,
+                'runState': 'background',
                 'cpu': <String, Object?>{
                   'label': 'CPU',
                   'value': 3.5,
@@ -63,6 +64,7 @@ void main() {
 
       expect(snapshots, hasLength(1));
       expect(snapshots.single.app.platformId, 'com.example.chat');
+      expect(snapshots.single.statusLabel, '后台运行');
       expect(snapshots.single.network.displayValue, '16.0 KB/s');
       expect(snapshots.single.source, 'android:/proc+TrafficStats');
     });

@@ -8,15 +8,11 @@ import 'package:flutter/services.dart';
 class MethodChannelResourceBridge implements PlatformResourceBridge {
   const MethodChannelResourceBridge({
     MethodChannel methodChannel = const MethodChannel(_methodChannelName),
-    EventChannel eventChannel = const EventChannel(_eventChannelName),
-  }) : _methodChannel = methodChannel,
-       _eventChannel = eventChannel;
+  }) : _methodChannel = methodChannel;
 
   static const _methodChannelName = 'app_resource_monitor/methods';
-  static const _eventChannelName = 'app_resource_monitor/snapshots';
 
   final MethodChannel _methodChannel;
-  final EventChannel _eventChannel;
 
   @override
   Future<List<AppResourceSnapshot>> fetchSnapshots() async {
@@ -39,17 +35,6 @@ class MethodChannelResourceBridge implements PlatformResourceBridge {
       debugPrint('[资源监控][Dart桥接] 原生 fetchSnapshots 调用失败：$error');
       rethrow;
     }
-  }
-
-  @override
-  Stream<List<AppResourceSnapshot>> watchSnapshots() {
-    return _eventChannel.receiveBroadcastStream().map((event) {
-      final list = event as List<dynamic>;
-      return list
-          .cast<Map<dynamic, dynamic>>()
-          .map(_snapshotFromPlatformMap)
-          .toList(growable: false);
-    });
   }
 
   @override

@@ -16,6 +16,7 @@ void main() {
           platformId: 'com.example.chat',
         ),
         isRunning: true,
+        runState: AppRunState.background,
         cpu: const ResourceMetric(
           label: 'CPU',
           value: 3.5,
@@ -63,10 +64,6 @@ class _FakePlatformResourceBridge implements PlatformResourceBridge {
 
   @override
   Future<List<AppResourceSnapshot>> fetchSnapshots() async => snapshots;
-
-  @override
-  Stream<List<AppResourceSnapshot>> watchSnapshots() =>
-      Stream<List<AppResourceSnapshot>>.value(snapshots);
 
   @override
   Future<ActionResult> stopBackground(MonitoredApp app) {
