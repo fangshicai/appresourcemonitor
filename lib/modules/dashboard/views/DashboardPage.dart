@@ -36,16 +36,35 @@ class DashboardPage extends GetView<DashboardViewModel> {
           MonitorViewStatus.error => Center(
             child: Text(controller.errorMessage.value ?? '资源监控失败'),
           ),
-          MonitorViewStatus.ready => RefreshIndicator(
-            onRefresh: controller.loadSnapshots,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: controller.snapshots.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _SnapshotCard(snapshot: controller.snapshots[index]);
-              },
-            ),
+          MonitorViewStatus.ready => Column(
+            children: [
+              _DashboardControls(controller: controller),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: controller.loadSnapshots,
+                  child: controller.snapshots.isEmpty
+                      ? ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: const [
+                            SizedBox(height: 160),
+                            Center(child: Text('没有匹配的应用')),
+                          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: controller.snapshots.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            return _SnapshotCard(
+                              snapshot: controller.snapshots[index],
+                              onReturn: controller.loadSnapshots,
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
           ),
         };
       }),
@@ -53,17 +72,93 @@ class DashboardPage extends GetView<DashboardViewModel> {
   }
 }
 
+class _DashboardControls extends StatelessWidget {
+  const _DashboardControls({required this.controller});
+
+  final DashboardViewModel controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  onChanged: controller.updateSearchQuery,
+                  decoration: const InputDecoration(
+                    hintText: '按名称或包名搜索',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Obx(() {
+                return DropdownButton<DashboardSortOption>(
+                  value: controller.sortOption.value,
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.updateSortOption(value);
+                    }
+                  },
+                  items: DashboardSortOption.values
+                      .map((option) {
+                        return DropdownMenuItem<DashboardSortOption>(
+                          value: option,
+                          child: Text(option.label),
+                        );
+                      })
+                      .toList(growable: false),
+                );
+              }),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Obx(() {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<DashboardRunningFilter>(
+                selected: {controller.runningFilter.value},
+                onSelectionChanged: (values) {
+                  controller.updateRunningFilter(values.single);
+                },
+                segments: DashboardRunningFilter.values
+                    .map((filter) {
+                      return ButtonSegment<DashboardRunningFilter>(
+                        value: filter,
+                        label: Text(filter.label),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
 class _SnapshotCard extends StatelessWidget {
-  const _SnapshotCard({required this.snapshot});
+  const _SnapshotCard({required this.snapshot, required this.onReturn});
 
   final AppResourceSnapshot snapshot;
+  final Future<void> Function() onReturn;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => Get.toNamed(AppRoutes.appDetail, arguments: snapshot),
+        onTap: () async {
+          await Get.toNamed(AppRoutes.appDetail, arguments: snapshot);
+          await onReturn();
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -98,6 +193,28 @@ class _SnapshotCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+extension _DashboardSortOptionLabel on DashboardSortOption {
+  String get label {
+    return switch (this) {
+      DashboardSortOption.appName => '名称',
+      DashboardSortOption.cpu => 'CPU',
+      DashboardSortOption.memory => '内存',
+      DashboardSortOption.disk => '磁盘',
+      DashboardSortOption.network => '网络',
+    };
+  }
+}
+
+extension _DashboardRunningFilterLabel on DashboardRunningFilter {
+  String get label {
+    return switch (this) {
+      DashboardRunningFilter.all => '全部',
+      DashboardRunningFilter.running => '运行中',
+      DashboardRunningFilter.stopped => '未运行',
+    };
   }
 }
 

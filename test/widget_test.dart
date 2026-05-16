@@ -1,4 +1,5 @@
 import 'package:appresourcemonitor/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,11 +14,13 @@ void main() {
   });
 
   testWidgets('shows dashboard with resource snapshots', (tester) async {
+    var fetchCount = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           if (call.method != 'fetchSnapshots') {
             return null;
           }
+          fetchCount += 1;
 
           return <Map<String, Object?>>[
             <String, Object?>{
@@ -67,5 +70,19 @@ void main() {
     expect(find.text('内存'), findsWidgets);
     expect(find.text('磁盘'), findsWidgets);
     expect(find.text('网络'), findsWidgets);
+
+    await tester.enterText(find.byType(EditableText), 'map');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Maps'), findsOneWidget);
+
+    await tester.tap(find.text('Maps'));
+    await tester.pumpAndSettle();
+    expect(find.text('卸载'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(fetchCount, 2);
   });
 }

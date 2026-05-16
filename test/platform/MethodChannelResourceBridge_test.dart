@@ -1,3 +1,5 @@
+import 'package:appresourcemonitor/models/ActionResult.dart';
+import 'package:appresourcemonitor/models/MonitoredApp.dart';
 import 'package:appresourcemonitor/platform/MethodChannelResourceBridge.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,6 +65,38 @@ void main() {
       expect(snapshots.single.app.platformId, 'com.example.chat');
       expect(snapshots.single.network.displayValue, '16.0 KB/s');
       expect(snapshots.single.source, 'android:/proc+TrafficStats');
+    });
+
+    test(
+      'reports unavailable platform when fetchSnapshots is not registered',
+      () {
+        expect(
+          const MethodChannelResourceBridge().fetchSnapshots(),
+          throwsA(isA<PlatformResourceBridgeUnavailableException>()),
+        );
+      },
+    );
+
+    test('maps uninstall fallback as successful system entry launch', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            expect(call.method, 'uninstall');
+            return <String, Object?>{
+              'status': 'success',
+              'message': '已打开系统卸载入口；普通环境不支持静默卸载。',
+            };
+          });
+
+      final result = await const MethodChannelResourceBridge().uninstall(
+        const MonitoredApp(
+          id: 'com.example.shop',
+          name: 'Shop',
+          platformId: 'com.example.shop',
+        ),
+      );
+
+      expect(result.status, AppActionStatus.success);
+      expect(result.message, contains('系统卸载入口'));
     });
   });
 }
