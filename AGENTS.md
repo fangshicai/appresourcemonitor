@@ -21,6 +21,23 @@
 View -> ViewModel/Controller -> Repository/Service -> PlatformResourceBridge -> Native Provider -> Root/Jailbreak Provider
 ```
 
+## 插件选型
+
+- `get`：用于路由管理、依赖注入和状态管理，是本项目 MVVM + GetX 规范的核心插件。
+- `dio`：作为主网络请求库，用于后端 API、远程配置、诊断日志上传、资源快照同步等需要统一拦截、超时、错误处理和请求配置的场景。
+- `json_serializable`：用于 JSON 序列化代码生成，适配接口模型、缓存模型、平台通道返回数据和 `AppResourceSnapshot` 等结构化数据。
+- `shared_preferences`：用于保存简单本地配置，例如首次启动状态、排序筛选偏好、刷新间隔、风险提示确认状态等少量 key-value 数据。
+- `connectivity_plus`：用于监听网络状态，适配远程配置、日志上传、企业后台同步等依赖网络的能力。
+- 其他组件按需使用；`http`、`freezed`、`hive`、`isar`、`sqflite` 等不作为当前默认选型，只有在功能复杂度需要时再引入。
+
+本地 `.agents/skills` 中的示例若推荐 `http`、`go_router`、`ChangeNotifier`、`provider` 或 `get_it`，仅作为通用 Flutter 指导参考；本项目实现时优先遵循本文件约定的 GetX、Dio、`json_serializable` 和 MVVM 分层。
+
+## 文件与目录命名
+
+- Dart 源文件使用首字母大写命名，例如 `AppResourceSnapshot.dart`、`ResourceMonitorController.dart`。
+- 目录使用小写命名，例如 `models`、`services`、`controllers`、`platform_bridge`。
+- 自动生成文件、测试文件和平台桥接相关文件也应尽量保持同一命名约定；若第三方工具生成固定命名，可保留工具默认命名。
+
 ## MVVM + GetX 规范
 
 - View 只负责渲染和用户交互，不直接调用平台通道。
